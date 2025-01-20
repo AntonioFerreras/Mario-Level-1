@@ -23,15 +23,17 @@ class Menu(tools._State):
     def startup(self, current_time, persist):
         """Called every time the game's state becomes this one.  Initializes
         certain values"""
-        self.next = c.LOAD_SCREEN
+        self.next = c.LEVEL1
         self.persist = persist
         self.game_info = persist
         self.overhead_info = info.OverheadInfo(self.game_info, c.MAIN_MENU)
+        self.done = True # instantly start the game
 
         self.sprite_sheet = setup.GFX['title_screen']
         self.setup_background()
         self.setup_mario()
         self.setup_cursor()
+
 
 
     def setup_cursor(self):
@@ -95,12 +97,12 @@ class Menu(tools._State):
         self.update_cursor(keys)
         self.overhead_info.update(self.game_info)
 
-        surface.blit(self.background, self.viewport, self.viewport)
-        surface.blit(self.image_dict['GAME_NAME_BOX'][0],
-                     self.image_dict['GAME_NAME_BOX'][1])
-        surface.blit(self.mario.image, self.mario.rect)
-        surface.blit(self.cursor.image, self.cursor.rect)
-        self.overhead_info.draw(surface)
+        # surface.blit(self.background, self.viewport, self.viewport)
+        # surface.blit(self.image_dict['GAME_NAME_BOX'][0],
+        #              self.image_dict['GAME_NAME_BOX'][1])
+        # surface.blit(self.mario.image, self.mario.rect)
+        # surface.blit(self.cursor.image, self.cursor.rect)
+        # self.overhead_info.draw(surface)
 
 
     def update_cursor(self, keys):

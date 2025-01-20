@@ -21,7 +21,7 @@ class Control(object):
         self.clock = pg.time.Clock()
         self.caption = caption
         self.fps = 60
-        self.show_fps = False
+        self.show_fps = True
         self.current_time = 0.0
         self.keys = pg.key.get_pressed()
         self.state_dict = {}
@@ -124,10 +124,10 @@ def load_all_gfx(directory, colorkey=(255,0,255), accept=('.png', 'jpg', 'bmp'))
 
 def load_all_music(directory, accept=('.wav', '.mp3', '.ogg', '.mdi')):
     songs = {}
-    for song in os.listdir(directory):
-        name,ext = os.path.splitext(song)
-        if ext.lower() in accept:
-            songs[name] = os.path.join(directory, song)
+    # for song in os.listdir(directory):
+    #     name,ext = os.path.splitext(song)
+    #     if ext.lower() in accept:
+    #         songs[name] = os.path.join(directory, song)
     return songs
 
 
@@ -137,10 +137,10 @@ def load_all_fonts(directory, accept=('.ttf')):
 
 def load_all_sfx(directory, accept=('.wav','.mpe','.ogg','.mdi')):
     effects = {}
-    for fx in os.listdir(directory):
-        name, ext = os.path.splitext(fx)
-        if ext.lower() in accept:
-            effects[name] = pg.mixer.Sound(os.path.join(directory, fx))
+    # for fx in os.listdir(directory):
+    #     name, ext = os.path.splitext(fx)
+    #     if ext.lower() in accept:
+    #         effects[name] = pg.mixer.Sound(os.path.join(directory, fx))
     return effects
 
 
