@@ -117,8 +117,9 @@ class LifeMushroom(Mushroom):
 
 class FireFlower(Powerup):
     """Powerup that allows Mario to throw fire balls"""
-    def __init__(self, x, y, name=c.FIREFLOWER):
+    def __init__(self, x, y, name=c.FIREFLOWER, do_reveal=True):
         super(FireFlower, self).__init__(x, y)
+        self.do_reveal = do_reveal
         self.setup_powerup(x, y, name, self.setup_frames)
 
 
@@ -144,6 +145,9 @@ class FireFlower(Powerup):
 
     def revealing(self):
         """Animation of flower coming out of box"""
+        if not self.do_reveal:
+            self.state = c.RESTING
+            return
         self.rect.y += self.y_vel
 
         if self.rect.bottom <= self.box_height:

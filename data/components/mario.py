@@ -46,7 +46,7 @@ class Mario(pg.sprite.Sprite):
         self.dead = False
         self.invincible = False
         self.big = False
-        self.fire = False
+        self.fire = True # False
         self.allow_fireball = True
         self.in_transition_state = False
         self.hurt_invincible = False
