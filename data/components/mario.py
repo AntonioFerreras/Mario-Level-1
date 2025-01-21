@@ -565,7 +565,7 @@ class Mario(pg.sprite.Sprite):
                 #     setup.SFX['small_jump'].play()
                 self.state = c.JUMP
                 if self.x_vel > 4.5 or self.x_vel < -4.5:
-                    self.y_vel = c.JUMP_VEL - .5
+                    self.y_vel = c.JUMP_VEL #- .15
                 else:
                     self.y_vel = c.JUMP_VEL
 
