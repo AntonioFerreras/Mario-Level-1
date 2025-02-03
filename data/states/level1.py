@@ -32,9 +32,14 @@ AGENT_JUMP_INTERVAL_MIN        = 500   # 0.5 sec delay between jumps
 AGENT_JUMP_INTERVAL_MAX        = 2000   # 2 sec delay between jumps
 
 AGENT_ACTION_HOLD_MIN_DURATION = 100    # 0.1 sec
-AGENT_ACTION_HOLD_MAX_DURATION = 1000   # 1 sec
+AGENT_ACTION_HOLD_MAX_DURATION = 100    # 0.1 sec
 AGENT_ACTION_INTERVAL_MIN      = 500    # 0.5 sec delay between actions
 AGENT_ACTION_INTERVAL_MAX      = 1000   # 1 sec delay between actions
+
+AGENT_SPRINT_HOLD_MIN_DURATION = 100    # 0.1 sec
+AGENT_SPRINT_HOLD_MAX_DURATION = 1000   # 1 sec
+AGENT_SPRINT_INTERVAL_MIN      = 900    # 0.9 sec delay between sprints
+AGENT_SPRINT_INTERVAL_MAX      = 1500   # 1.5 sec delay between sprints
 
 # Movement probabilities
 AGENT_LEFT_PROBABILITY  = 0.3
@@ -94,6 +99,11 @@ class Level1(tools._State):
         self.agent_action_timer = 0
         self.agent_action_duration = 0
         self.agent_action_next_time = current_time + random.uniform(AGENT_ACTION_INTERVAL_MIN, AGENT_ACTION_INTERVAL_MAX)
+
+        self.agent_sprint_active = False
+        self.agent_sprint_timer = 0
+        self.agent_sprint_duration = 0
+        self.agent_sprint_next_time = current_time + random.uniform(AGENT_ACTION_INTERVAL_MIN, AGENT_ACTION_INTERVAL_MAX)
 
 
 
@@ -480,6 +490,19 @@ class Level1(tools._State):
                 self.agent_action_active = True
                 self.agent_action_timer = current_time
                 self.agent_action_duration = random.uniform(AGENT_ACTION_HOLD_MIN_DURATION, AGENT_ACTION_HOLD_MAX_DURATION)
+
+
+        # --- Update Sprint Chain (unchanged) ---
+        if self.agent_sprint_active:
+            if (current_time - self.agent_sprint_timer) >= self.agent_sprint_duration:
+                self.agent_sprint_active = False
+                self.agent_sprint_next_time = current_time + random.uniform(AGENT_SPRINT_INTERVAL_MIN, AGENT_SPRINT_INTERVAL_MAX)
+        else:
+            if current_time >= self.agent_sprint_next_time:
+                self.agent_sprint_active = True
+                self.agent_sprint_timer = current_time
+                self.agent_sprint_duration = random.uniform(AGENT_SPRINT_HOLD_MIN_DURATION, AGENT_SPRINT_HOLD_MAX_DURATION)
+
         
         # --- Build the autonomous keys dictionary and store it in self.auto_keys ---
         self.auto_keys = {
@@ -487,6 +510,7 @@ class Level1(tools._State):
             tools.keybinding['right']: move_right,
             tools.keybinding['jump']: self.agent_jump_active,
             tools.keybinding['action']: self.agent_action_active,
+            tools.keybinding['sprint']: self.agent_sprint_active,
             tools.keybinding['down']: False,
         }
         

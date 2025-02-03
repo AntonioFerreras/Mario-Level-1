@@ -548,14 +548,16 @@ class Mario(pg.sprite.Sprite):
 
                 self.walking_timer = self.current_time
 
-        if keys[tools.keybinding['action']]:
+        if keys[tools.keybinding['sprint']]:
             self.max_x_vel = c.MAX_RUN_SPEED
             self.x_accel = c.RUN_ACCEL
-            if self.fire and self.allow_fireball:
-                self.shoot_fireball(fire_group)
         else:
             self.max_x_vel = c.MAX_WALK_SPEED
             self.x_accel = c.WALK_ACCEL
+
+        if keys[tools.keybinding['action']]:
+            if self.fire and self.allow_fireball:
+                self.shoot_fireball(fire_group)
 
         if keys[tools.keybinding['jump']]:
             if self.allow_jump:

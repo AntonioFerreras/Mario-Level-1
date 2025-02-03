@@ -8,7 +8,8 @@ keybinding = {
     'jump':pg.K_a,
     'left':pg.K_LEFT,
     'right':pg.K_RIGHT,
-    'down':pg.K_DOWN
+    'down':pg.K_DOWN,
+    'sprint':pg.K_LSHIFT,
 }
 
 class Control(object):
@@ -34,7 +35,7 @@ class Control(object):
         self.state = self.state_dict[self.state_name]
 
     def update(self):
-        self.current_time = pg.time.get_ticks()
+        self.current_time += 1000/60.0 # pg.time.get_ticks()
         if self.state.quit:
             self.done = True
         elif self.state.done:
