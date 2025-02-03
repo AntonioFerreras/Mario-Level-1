@@ -87,7 +87,8 @@ class Level1(tools._State):
         # --- Autonomous Agent Variables ---
         import random
         # Movement chain: choose a direction and a duration (in ms)
-        self.agent_move_direction = "stop"
+        rand = random.random()
+        self.agent_move_direction = "left" if rand < AGENT_LEFT_PROBABILITY else ("right" if rand < AGENT_LEFT_PROBABILITY + AGENT_RIGHT_PROBABILITY else "stop")
         self.agent_move_timer = current_time
         self.agent_move_duration = random.uniform(AGENT_MOVEMENT_MIN_DURATION, AGENT_MOVEMENT_MAX_DURATION)
         
@@ -121,8 +122,11 @@ class Level1(tools._State):
         self.frame_number = 1   # A counter for naming frames
         self.sequence_saved = False
 
+        self.frames_in_memory = []   # New list for storing frame copies
+        self.frame_number = 1        # Frame counter (already there)
+
     def record_frame(self, surface):
-        # Record the state for this frame:
+        # Record the state for this frame
         player_state = {"x": self.mario.rect.x, "y": self.mario.rect.y}
         camera_state = {
             "x": self.viewport.x,
@@ -130,44 +134,70 @@ class Level1(tools._State):
             "width": self.viewport.w,
             "height": self.viewport.h
         }
-        # Gather goomba positions (assuming goombas are instances of enemies.Goomba)
+        
+        # Gather goomba positions
         goombas = []
         for enemy in self.enemy_group:
             if isinstance(enemy, enemies.Goomba):
                 goombas.append({"x": enemy.rect.x, "y": enemy.rect.y})
-                
-        # Gather fireball positions (assuming fireballs are identifiable by powerup.name)
+        
+        # Gather fireball positions
         fireballs = []
         for powerup in self.powerup_group:
             if hasattr(powerup, "name") and str(powerup.name).lower() == "fireball":
                 fireballs.append({"x": powerup.rect.x, "y": powerup.rect.y})
-                
-        # Create a state dictionary for this frame:
+        
+        # Create a new dictionary for inputs with human-readable keys.
+        # Here we extract the boolean values from self.auto_keys.
+        frame_inputs = {
+            "left":   self.auto_keys.get(tools.keybinding["left"], False),
+            "right":  self.auto_keys.get(tools.keybinding["right"], False),
+            "jump":   self.auto_keys.get(tools.keybinding["jump"], False),
+            "action": self.auto_keys.get(tools.keybinding["action"], False),
+            "sprint": self.auto_keys.get(tools.keybinding["sprint"], False),
+            "down":   self.auto_keys.get(tools.keybinding["down"], False)
+        }
+        
+        # Create the frame state, now including the inputs.
         frame_state = {
             "frame": self.frame_number,
             "player": player_state,
             "camera": camera_state,
             "goombas": goombas,
-            "fireballs": fireballs
+            "fireballs": fireballs,
+            "inputs": frame_inputs
         }
-        # Append the frame state to our list:
+        
         self.states_data.append(frame_state)
         
-        # Save the rendered frame buffer (surface) as an image.
-        # Name it with an 8-digit number, e.g. frame00000001.png
-        frame_filename = os.path.join(self.frames_folder, f"frame{self.frame_number:08d}.png")
-        pg.image.save(surface, frame_filename)
+        # Instead of saving the full-sized surface directly,
+        # first make a copy and then downscale it from 800x600 to 400x300 using nearest neighbor.
+        frame_copy = surface.copy()
+        scaled_frame = pg.transform.scale(frame_copy, (400, 300))
+        
+        # Store the downscaled frame in memory.
+        self.frames_in_memory.append(scaled_frame)
         
         self.frame_number += 1
 
 
+
+
+
     def save_sequence(self):
-        # Write the states list to a file named "states.json" in the sequence folder.
+        # First, save the JSON state data
         states_filename = os.path.join(self.sequence_folder, "states.json")
         output = {"frames": self.states_data}
         with open(states_filename, "w") as fp:
             json.dump(output, fp, indent=2)
-        print(f"Sequence saved: {states_filename}")
+        print(f"States saved: {states_filename}")
+        
+        # Now, save all the in-memory frames to disk.
+        for i, frame in enumerate(self.frames_in_memory, start=1):
+            frame_filename = os.path.join(self.frames_folder, f"frame{i:08d}.png")
+            pg.image.save(frame, frame_filename)
+        print(f"Sequence frames saved to folder: {self.frames_folder}")
+
 
 
 
@@ -584,9 +614,8 @@ class Level1(tools._State):
         self.blit_everything(surface)
         self.sound_manager.update(self.game_info, self.mario)
 
-        # Record the frame only while the player is alive:
-        if not self.mario.dead:
-            self.record_frame(surface)
+        # Record the frame
+        self.record_frame(surface)
 
 
 
@@ -1564,10 +1593,11 @@ class Level1(tools._State):
             self.death_timer = self.current_time
         elif (self.current_time - self.death_timer) > 3000:
             if not self.sequence_saved:
-                self.save_sequence()
+                self.save_sequence()    # Now saves JSON and all frames from memory
                 self.sequence_saved = True
             self.set_game_info_values()
             self.done = True
+
 
 
 

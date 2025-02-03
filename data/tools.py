@@ -21,7 +21,7 @@ class Control(object):
         self.done = False
         self.clock = pg.time.Clock()
         self.caption = caption
-        self.fps = 6000
+        self.fps = 2000
         self.show_fps = True
         self.current_time = 0.0
         self.keys = pg.key.get_pressed()
