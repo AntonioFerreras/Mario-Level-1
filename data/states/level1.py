@@ -3,6 +3,9 @@ from __future__ import division
 
 import pygame as pg
 import random
+import json
+import os
+import string
 from .. import setup, tools
 from .. import constants as c
 from .. import game_sound
@@ -34,7 +37,7 @@ AGENT_JUMP_INTERVAL_MAX        = 2000   # 2 sec delay between jumps
 AGENT_ACTION_HOLD_MIN_DURATION = 100    # 0.1 sec
 AGENT_ACTION_HOLD_MAX_DURATION = 100    # 0.1 sec
 AGENT_ACTION_INTERVAL_MIN      = 500    # 0.5 sec delay between actions
-AGENT_ACTION_INTERVAL_MAX      = 1000   # 1 sec delay between actions
+AGENT_ACTION_INTERVAL_MAX      = 3000   # 3 sec delay between actions
 
 AGENT_SPRINT_HOLD_MIN_DURATION = 100    # 0.1 sec
 AGENT_SPRINT_HOLD_MAX_DURATION = 1000   # 1 sec
@@ -105,6 +108,58 @@ class Level1(tools._State):
         self.agent_sprint_duration = 0
         self.agent_sprint_next_time = current_time + random.uniform(AGENT_ACTION_INTERVAL_MIN, AGENT_ACTION_INTERVAL_MAX)
 
+        # --- Sequence Recording Attributes ---
+        self.sequence_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        self.sequence_data = []    # List of frame dictionaries
+        self.frame_number = 1      # To number each frame in the sequence
+        self.sequence_saved = False
+
+    def record_frame(self):
+        # Record the player's position:
+        player_state = {"x": self.mario.rect.x, "y": self.mario.rect.y}
+        
+        # Record the camera (viewport) position and size:
+        camera_state = {
+            "x": self.viewport.x,
+            "y": self.viewport.y,
+            "width": self.viewport.w,
+            "height": self.viewport.h
+        }
+        
+        # Record goomba positions from enemy_group (assuming goombas are instances of enemies.Goomba)
+        goombas = []
+        for enemy in self.enemy_group:
+            if isinstance(enemy, enemies.Goomba):
+                goombas.append({"x": enemy.rect.x, "y": enemy.rect.y})
+        
+        # Record fireball positions from powerup_group (assuming fireballs are marked by their name)
+        fireballs = []
+        for powerup in self.powerup_group:
+            # Adjust the condition if your FIREBALL constant differs.
+            if hasattr(powerup, "name") and str(powerup.name).lower() == "fireball":
+                fireballs.append({"x": powerup.rect.x, "y": powerup.rect.y})
+        
+        # Create a frame state dictionary:
+        frame_state = {
+            "frame": self.frame_number,
+            "player": player_state,
+            "camera": camera_state,
+            "goombas": goombas,
+            "fireballs": fireballs
+        }
+        
+        # Append to the sequence data list and increment the counter
+        self.sequence_data.append(frame_state)
+        self.frame_number += 1
+
+    def save_sequence(self):
+        data_folder = "traindata"
+        os.makedirs(data_folder, exist_ok=True)
+        filename = os.path.join(data_folder, f"sequence{self.sequence_id}.json")
+        output = {"frames": self.sequence_data}
+        with open(filename, "w") as fp:
+            json.dump(output, fp, indent=2)
+        print(f"Sequence saved as {filename}")
 
 
     def setup_background(self):
@@ -520,6 +575,9 @@ class Level1(tools._State):
         self.blit_everything(surface)
         self.sound_manager.update(self.game_info, self.mario)
 
+        # Record the frame only while the player is alive:
+        if not self.mario.dead:
+            self.record_frame()
 
 
 
@@ -1496,6 +1554,9 @@ class Level1(tools._State):
         if self.death_timer == 0:
             self.death_timer = self.current_time
         elif (self.current_time - self.death_timer) > 3000:
+            if not self.sequence_saved:
+                self.save_sequence()
+                self.sequence_saved = True
             self.set_game_info_values()
             self.done = True
 
@@ -1597,5 +1658,11 @@ class Level1(tools._State):
         # self.overhead_info_display.draw(surface)
         for score in self.moving_score_list:
             score.draw(surface)
+
+    def print_goombas_positions(self):
+        """Prints the list of Goombas and their positions each frame"""
+        goombas = [enemy for enemy in self.enemy_group if isinstance(enemy, enemies.Goomba)]
+        for index, goomba in enumerate(goombas):
+            print(f"Goomba {index} at position: x={goomba.rect.x}, y={goomba.rect.y}")
 
 
