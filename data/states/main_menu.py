@@ -4,6 +4,7 @@ import pygame as pg
 from .. import setup, tools
 from .. import constants as c
 from .. components import info, mario
+import random
 
 
 class Menu(tools._State):
@@ -16,7 +17,7 @@ class Menu(tools._State):
                    c.TOP_SCORE: 0,
                    c.CURRENT_TIME: 0.0,
                    c.LEVEL_STATE: None,
-                   c.CAMERA_START_X: 0,
+                   c.CAMERA_START_X: random.randint(0, 3440),
                    c.MARIO_DEAD: False}
         self.startup(0.0, persist)
 

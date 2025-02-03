@@ -2,6 +2,7 @@ from __future__ import division
 
 
 import pygame as pg
+import random
 from .. import setup, tools
 from .. import constants as c
 from .. import game_sound
@@ -16,6 +17,29 @@ from .. components import info
 from .. components import score
 from .. components import castle_flag
 from .. components import powerups
+
+# Autonomous Agent Timing Parameters (in milliseconds)
+AGENT_MOVEMENT_MIN_DURATION    = 100    # 0.1 sec
+AGENT_MOVEMENT_MAX_DURATION    = 3000   # 3 sec
+
+AGENT_STOP_MIN_DURATION        = 100    # 0.1 sec
+AGENT_STOP_MAX_DURATION        = 700    # 0.7 sec
+
+
+AGENT_JUMP_HOLD_MIN_DURATION   = 200    # 0.2 sec
+AGENT_JUMP_HOLD_MAX_DURATION   = 2000   # 2 sec
+AGENT_JUMP_INTERVAL_MIN        = 500   # 0.5 sec delay between jumps
+AGENT_JUMP_INTERVAL_MAX        = 2000   # 2 sec delay between jumps
+
+AGENT_ACTION_HOLD_MIN_DURATION = 100    # 0.1 sec
+AGENT_ACTION_HOLD_MAX_DURATION = 1000   # 1 sec
+AGENT_ACTION_INTERVAL_MIN      = 500    # 0.5 sec delay between actions
+AGENT_ACTION_INTERVAL_MAX      = 1000   # 1 sec delay between actions
+
+# Movement probabilities
+AGENT_LEFT_PROBABILITY  = 0.3
+AGENT_RIGHT_PROBABILITY = 0.5
+
 
 
 class Level1(tools._State):
@@ -51,12 +75,32 @@ class Level1(tools._State):
         self.setup_mario()
         self.setup_checkpoints()
         self.setup_spritegroups()
+        
+        # --- Autonomous Agent Variables ---
+        import random
+        # Movement chain: choose a direction and a duration (in ms)
+        self.agent_move_direction = "stop"
+        self.agent_move_timer = current_time
+        self.agent_move_duration = random.uniform(AGENT_MOVEMENT_MIN_DURATION, AGENT_MOVEMENT_MAX_DURATION)
+        
+        # Jump chain: not active initially; schedule the first jump after a random interval.
+        self.agent_jump_active = False
+        self.agent_jump_timer = 0
+        self.agent_jump_duration = 0
+        self.agent_jump_next_time = current_time + random.uniform(AGENT_JUMP_INTERVAL_MIN, AGENT_JUMP_INTERVAL_MAX)
+        
+        # Action chain (for sprint/fire): not active initially; schedule first action press.
+        self.agent_action_active = False
+        self.agent_action_timer = 0
+        self.agent_action_duration = 0
+        self.agent_action_next_time = current_time + random.uniform(AGENT_ACTION_INTERVAL_MIN, AGENT_ACTION_INTERVAL_MAX)
+
 
 
     def setup_background(self):
         """Sets the background image, rect and scales it to the correct
         proportions"""
-        self.background = setup.GFX['level_1']
+        self.background = setup.GFX['level_1_empty']
         self.back_rect = self.background.get_rect()
         self.background = pg.transform.scale(self.background,
                                   (int(self.back_rect.width*c.BACKGROUND_MULTIPLER),
@@ -74,82 +118,90 @@ class Level1(tools._State):
     def setup_ground(self):
         """Creates collideable, invisible rectangles over top of the ground for
         sprites to walk on"""
-        ground_rect1 = collider.Collider(0, c.GROUND_HEIGHT,    2953, 60)
-        ground_rect2 = collider.Collider(3048, c.GROUND_HEIGHT,  635, 60)
-        ground_rect3 = collider.Collider(3819, c.GROUND_HEIGHT, 2735, 60)
-        ground_rect4 = collider.Collider(6647, c.GROUND_HEIGHT, 2300, 60)
+        # ground_rect1 = collider.Collider(0, c.GROUND_HEIGHT,    2953, 60)
+        # ground_rect1 = collider.Collider(0, c.GROUND_HEIGHT,    19*43, 60)
+        # ground_rect11 = collider.Collider((19+2)*43, c.GROUND_HEIGHT,    (69-19-2)*43, 60)
+        # ground_rect2 = collider.Collider(3048, c.GROUND_HEIGHT,  635, 60)
+        # ground_rect3 = collider.Collider(3819, c.GROUND_HEIGHT, 2735, 60)
+        # ground_rect4 = collider.Collider(6647, c.GROUND_HEIGHT, 2300, 60)
 
-        self.ground_group = pg.sprite.Group(ground_rect1,
-                                           ground_rect2,
-                                           ground_rect3,
-                                           ground_rect4)
+        # self.ground_group = pg.sprite.Group(ground_rect1,
+        #                                     ground_rect11,
+        #                                    ground_rect2,
+        #                                    ground_rect3,
+        #                                    ground_rect4)
+        ground_rect1 = collider.Collider(0, c.GROUND_HEIGHT,    9947, 60)
+        self.ground_group = pg.sprite.Group(ground_rect1)
 
 
     def setup_pipes(self):
         """Create collideable rects for all the pipes"""
 
-        pipe1 = collider.Collider(1202, 452, 83, 82)
-        pipe2 = collider.Collider(1631, 409, 83, 140)
-        pipe3 = collider.Collider(1973, 366, 83, 170)
-        pipe4 = collider.Collider(2445, 366, 83, 170)
-        pipe5 = collider.Collider(6989, 452, 83, 82)
-        pipe6 = collider.Collider(7675, 452, 83, 82)
+        # pipe1 = collider.Collider(1202, 452, 83, 82)
+        # pipe2 = collider.Collider(1631, 409, 83, 140)
+        # pipe3 = collider.Collider(1973, 366, 83, 170)
+        # pipe4 = collider.Collider(2445, 366, 83, 170)
+        # pipe5 = collider.Collider(6989, 452, 83, 82)
+        # pipe6 = collider.Collider(7675, 452, 83, 82)
 
-        self.pipe_group = pg.sprite.Group(pipe1, pipe2,
-                                          pipe3, pipe4,
-                                          pipe5, pipe6)
+        # self.pipe_group = pg.sprite.Group(pipe1, pipe2,
+        #                                   pipe3, pipe4,
+        #                                   pipe5, pipe6)
+        self.pipe_group = pg.sprite.Group()
 
 
     def setup_steps(self):
         """Create collideable rects for all the steps"""
-        step1 = collider.Collider(5745, 495, 40, 44)
-        step2 = collider.Collider(5788, 452, 40, 44)
-        step3 = collider.Collider(5831, 409, 40, 44)
-        step4 = collider.Collider(5874, 366, 40, 176)
+        # step1 = collider.Collider(5745, 495, 40, 44)
+        # step2 = collider.Collider(5788, 452, 40, 44)
+        # step3 = collider.Collider(5831, 409, 40, 44)
+        # step4 = collider.Collider(5874, 366, 40, 176)
 
 
-        step5 = collider.Collider(6001, 366, 40, 176)
-        step6 = collider.Collider(6044, 408, 40, 40)
-        step7 = collider.Collider(6087, 452, 40, 40)
-        step8 = collider.Collider(6130, 495, 40, 40)
+        # step5 = collider.Collider(6001, 366, 40, 176)
+        # step6 = collider.Collider(6044, 408, 40, 40)
+        # step7 = collider.Collider(6087, 452, 40, 40)
+        # step8 = collider.Collider(6130, 495, 40, 40)
 
-        step9 = collider.Collider(6345, 495, 40, 40)
-        step10 = collider.Collider(6388, 452, 40, 40)
-        step11 = collider.Collider(6431, 409, 40, 40)
-        step12 = collider.Collider(6474, 366, 40, 40)
-        step13 = collider.Collider(6517, 366, 40, 176)
+        # step9 = collider.Collider(6345, 495, 40, 40)
+        # step10 = collider.Collider(6388, 452, 40, 40)
+        # step11 = collider.Collider(6431, 409, 40, 40)
+        # step12 = collider.Collider(6474, 366, 40, 40)
+        # step13 = collider.Collider(6517, 366, 40, 176)
 
-        step14 = collider.Collider(6644, 366, 40, 176)
-        step15 = collider.Collider(6687, 408, 40, 40)
-        step16 = collider.Collider(6728, 452, 40, 40)
-        step17 = collider.Collider(6771, 495, 40, 40)
+        # step14 = collider.Collider(6644, 366, 40, 176)
+        # step15 = collider.Collider(6687, 408, 40, 40)
+        # step16 = collider.Collider(6728, 452, 40, 40)
+        # step17 = collider.Collider(6771, 495, 40, 40)
 
-        step18 = collider.Collider(7760, 495, 40, 40)
-        step19 = collider.Collider(7803, 452, 40, 40)
-        step20 = collider.Collider(7845, 409, 40, 40)
-        step21 = collider.Collider(7888, 366, 40, 40)
-        step22 = collider.Collider(7931, 323, 40, 40)
-        step23 = collider.Collider(7974, 280, 40, 40)
-        step24 = collider.Collider(8017, 237, 40, 40)
-        step25 = collider.Collider(8060, 194, 40, 40)
-        step26 = collider.Collider(8103, 194, 40, 360)
+        # step18 = collider.Collider(7760, 495, 40, 40)
+        # step19 = collider.Collider(7803, 452, 40, 40)
+        # step20 = collider.Collider(7845, 409, 40, 40)
+        # step21 = collider.Collider(7888, 366, 40, 40)
+        # step22 = collider.Collider(7931, 323, 40, 40)
+        # step23 = collider.Collider(7974, 280, 40, 40)
+        # step24 = collider.Collider(8017, 237, 40, 40)
+        # step25 = collider.Collider(8060, 194, 40, 40)
+        # step26 = collider.Collider(8103, 194, 40, 360)
 
-        step27 = collider.Collider(8488, 495, 40, 40)
+        # step27 = collider.Collider(8488, 495, 40, 40)
 
-        self.step_group = pg.sprite.Group(step1,  step2,
-                                          step3,  step4,
-                                          step5,  step6,
-                                          step7,  step8,
-                                          step9,  step10,
-                                          step11, step12,
-                                          step13, step14,
-                                          step15, step16,
-                                          step17, step18,
-                                          step19, step20,
-                                          step21, step22,
-                                          step23, step24,
-                                          step25, step26,
-                                          step27)
+        # self.step_group = pg.sprite.Group(step1,  step2,
+        #                                   step3,  step4,
+        #                                   step5,  step6,
+        #                                   step7,  step8,
+        #                                   step9,  step10,
+        #                                   step11, step12,
+        #                                   step13, step14,
+        #                                   step15, step16,
+        #                                   step17, step18,
+        #                                   step19, step20,
+        #                                   step21, step22,
+        #                                   step23, step24,
+        #                                   step25, step26,
+        #                                   step27)
+
+        self.step_group = pg.sprite.Group()
 
 
     def setup_bricks(self):
@@ -215,8 +267,8 @@ class Level1(tools._State):
         # self.brick_group.add(bricks.Brick(43*(3+3), c.GROUND_HEIGHT-43*5))
         # for i in range(6):
         #     self.brick_group.add(bricks.Brick(43*(6+i), c.GROUND_HEIGHT-43*4))
-        for y in range(7):
-            self.brick_group.add(bricks.Brick(43*14, c.GROUND_HEIGHT-43*(y+1)))
+        # for y in range(7):
+        #     self.brick_group.add(bricks.Brick(43*14, c.GROUND_HEIGHT-43*(y+1)))
 
         # self.powerup_group.add(powerups.FireFlower(43*6, c.GROUND_HEIGHT-43*1, do_reveal=False))
 
@@ -276,52 +328,52 @@ class Level1(tools._State):
 
     def setup_enemies(self):
         """Creates all the enemies and stores them in a list of lists."""
-        # goomba0 = enemies.Goomba()
-        # goomba1 = enemies.Goomba()
-        # goomba2 = enemies.Goomba()
-        # goomba3 = enemies.Goomba()
-        # goomba4 = enemies.Goomba(193)
-        # goomba5 = enemies.Goomba(193)
-        # goomba6 = enemies.Goomba()
-        # goomba7 = enemies.Goomba()
-        # goomba8 = enemies.Goomba()
-        # goomba9 = enemies.Goomba()
-        # goomba10 = enemies.Goomba()
-        # goomba11 = enemies.Goomba()
-        # goomba12 = enemies.Goomba()
-        # goomba13 = enemies.Goomba()
-        # goomba14 = enemies.Goomba()
-        # goomba15 = enemies.Goomba()
+        goomba0 = enemies.Goomba()
+        goomba1 = enemies.Goomba()
+        goomba2 = enemies.Goomba()
+        goomba3 = enemies.Goomba()
+        goomba4 = enemies.Goomba(193)
+        goomba5 = enemies.Goomba(193)
+        goomba6 = enemies.Goomba()
+        goomba7 = enemies.Goomba()
+        goomba8 = enemies.Goomba()
+        goomba9 = enemies.Goomba()
+        goomba10 = enemies.Goomba()
+        goomba11 = enemies.Goomba()
+        goomba12 = enemies.Goomba()
+        goomba13 = enemies.Goomba()
+        goomba14 = enemies.Goomba()
+        goomba15 = enemies.Goomba()
 
-        # koopa0 = enemies.Koopa()
+        goombakoopa0 = enemies.Goomba()
 
-        # enemy_group1 = pg.sprite.Group(goomba0)
-        # enemy_group2 = pg.sprite.Group(goomba1)
-        # enemy_group3 = pg.sprite.Group(goomba2, goomba3)
-        # enemy_group4 = pg.sprite.Group(goomba4, goomba5)
-        # enemy_group5 = pg.sprite.Group(goomba6, goomba7)
-        # enemy_group6 = pg.sprite.Group(koopa0)
-        # enemy_group7 = pg.sprite.Group(goomba8, goomba9)
-        # enemy_group8 = pg.sprite.Group(goomba10, goomba11)
-        # enemy_group9 = pg.sprite.Group(goomba12, goomba13)
-        # enemy_group10 = pg.sprite.Group(goomba14, goomba15)
+        enemy_group1 = pg.sprite.Group(goomba0)
+        enemy_group2 = pg.sprite.Group(goomba1)
+        enemy_group3 = pg.sprite.Group(goomba2, goomba3)
+        enemy_group4 = pg.sprite.Group(goomba4, goomba5)
+        enemy_group5 = pg.sprite.Group(goomba6, goomba7)
+        enemy_group6 = pg.sprite.Group(goombakoopa0)
+        enemy_group7 = pg.sprite.Group(goomba8, goomba9)
+        enemy_group8 = pg.sprite.Group(goomba10, goomba11)
+        enemy_group9 = pg.sprite.Group(goomba12, goomba13)
+        enemy_group10 = pg.sprite.Group(goomba14, goomba15)
 
-        # self.enemy_group_list = [enemy_group1,
-        #                          enemy_group2,
-        #                          enemy_group3,
-        #                          enemy_group4,
-        #                          enemy_group5,
-        #                          enemy_group6,
-        #                          enemy_group7,
-        #                          enemy_group8,
-        #                          enemy_group9,
-        #                          enemy_group10]
+        self.enemy_group_list = [enemy_group1,
+                                 enemy_group2,
+                                 enemy_group3,
+                                 enemy_group4,
+                                 enemy_group5,
+                                 enemy_group6,
+                                 enemy_group7,
+                                 enemy_group8,
+                                 enemy_group9,
+                                 enemy_group10]
         self.enemy_group = pg.sprite.Group()
         
-        goomba0 = enemies.Goomba()
-        goomba0.rect.x = 43*13
-        self.enemy_group.add(goomba0)
-        self.enemy_group_list = []
+        # goomba0 = enemies.Goomba()
+        # goomba0.rect.x = 43*13
+        # self.enemy_group.add(goomba0)
+        # self.enemy_group_list = []
 
 
     def setup_mario(self):
@@ -346,14 +398,14 @@ class Level1(tools._State):
         check10 = checkpoint.Checkpoint(6800, '10')
         check11 = checkpoint.Checkpoint(8504, '11', 5, 6)
         check12 = checkpoint.Checkpoint(8775, '12')
-        check13 = checkpoint.Checkpoint(2740, 'secret_mushroom', 360, 40, 12)
+        # check13 = checkpoint.Checkpoint(2740, 'secret_mushroom', 360, 40, 12)
 
-        self.check_point_group = pg.sprite.Group()
-        # self.check_point_group = pg.sprite.Group(check1, check2, check3,
-        #                                          check4, check5, check6,
-        #                                          check7, check8, check9,
-        #                                          check10, check11, check12,
-        #                                          check13)
+        # self.check_point_group = pg.sprite.Group()
+        self.check_point_group = pg.sprite.Group(check1, check2, check3,
+                                                 check4, check5, check6,
+                                                 check7, check8, check9,
+                                                 check10, check11, check12)
+                                                #  check13)
 
 
     def setup_spritegroups(self):
@@ -370,12 +422,80 @@ class Level1(tools._State):
 
 
     def update(self, surface, keys, current_time):
-        """Updates Entire level using states.  Called by the control object"""
+        """Updates entire level using states. Called by the control object."""
         self.game_info[c.CURRENT_TIME] = self.current_time = current_time
-        self.handle_states(keys)
+        import random  # if not already imported
+
+        # --- Update Movement Chain ---
+        # When the current movement interval expires, choose a new movement direction.
+        if (current_time - self.agent_move_timer) >= self.agent_move_duration:
+            # If Mario is at the left edge, force his next interval to be "right"
+            if self.mario.rect.x <= (self.viewport.x + 5):
+                self.agent_move_direction = "right"
+                self.agent_move_duration = random.uniform(AGENT_MOVEMENT_MIN_DURATION, AGENT_MOVEMENT_MAX_DURATION)
+            else:
+                # Otherwise choose among left (30%), right (50%), or stop (20%)
+                p = random.random()
+                if p < AGENT_LEFT_PROBABILITY:
+                    self.agent_move_direction = "left"
+                    self.agent_move_duration = random.uniform(AGENT_MOVEMENT_MIN_DURATION, AGENT_MOVEMENT_MAX_DURATION)
+                elif p < AGENT_LEFT_PROBABILITY + AGENT_RIGHT_PROBABILITY:  # i.e. p < 0.80
+                    self.agent_move_direction = "right"
+                    self.agent_move_duration = random.uniform(AGENT_MOVEMENT_MIN_DURATION, AGENT_MOVEMENT_MAX_DURATION)
+                else:
+                    self.agent_move_direction = "stop"
+                    self.agent_move_duration = random.uniform(AGENT_STOP_MIN_DURATION, AGENT_STOP_MAX_DURATION)
+            self.agent_move_timer = current_time
+
+        # Now convert the chosen direction into boolean key presses.
+        if self.agent_move_direction == "left":
+            move_left = True
+            move_right = False
+        elif self.agent_move_direction == "right":
+            move_left = False
+            move_right = True
+        else:  # "stop"
+            move_left = False
+            move_right = False
+
+
+        # --- Update Jump Chain (unchanged) ---
+        if self.agent_jump_active:
+            if (current_time - self.agent_jump_timer) >= self.agent_jump_duration:
+                self.agent_jump_active = False
+                self.agent_jump_next_time = current_time + random.uniform(AGENT_JUMP_INTERVAL_MIN, AGENT_JUMP_INTERVAL_MAX)
+        else:
+            if current_time >= self.agent_jump_next_time:
+                self.agent_jump_active = True
+                self.agent_jump_timer = current_time
+                self.agent_jump_duration = random.uniform(AGENT_JUMP_HOLD_MIN_DURATION, AGENT_JUMP_HOLD_MAX_DURATION)
+        
+        # --- Update Action Chain (unchanged) ---
+        if self.agent_action_active:
+            if (current_time - self.agent_action_timer) >= self.agent_action_duration:
+                self.agent_action_active = False
+                self.agent_action_next_time = current_time + random.uniform(AGENT_ACTION_INTERVAL_MIN, AGENT_ACTION_INTERVAL_MAX)
+        else:
+            if current_time >= self.agent_action_next_time:
+                self.agent_action_active = True
+                self.agent_action_timer = current_time
+                self.agent_action_duration = random.uniform(AGENT_ACTION_HOLD_MIN_DURATION, AGENT_ACTION_HOLD_MAX_DURATION)
+        
+        # --- Build the autonomous keys dictionary and store it in self.auto_keys ---
+        self.auto_keys = {
+            tools.keybinding['left']: move_left,
+            tools.keybinding['right']: move_right,
+            tools.keybinding['jump']: self.agent_jump_active,
+            tools.keybinding['action']: self.agent_action_active,
+            tools.keybinding['down']: False,
+        }
+        
+        # Now update the level using our auto_keys.
+        self.handle_states(self.auto_keys)
         self.check_if_time_out()
         self.blit_everything(surface)
         self.sound_manager.update(self.game_info, self.mario)
+
 
 
 
@@ -395,7 +515,11 @@ class Level1(tools._State):
         """Updates mario in a transition state (like becoming big, small,
          or dies). Checks if he leaves the transition state or dies to
          change the level state back"""
-        self.mario.update(keys, self.game_info, self.powerup_group)
+        # self.mario.update(keys, self.game_info, self.powerup_group)
+            # Instead of using the keys parameter from the user,
+        # use our auto_keys for autonomous control.
+        self.mario.update(self.auto_keys, self.game_info, self.powerup_group)
+
         for score in self.moving_score_list:
             score.update(self.moving_score_list, self.game_info)
         if self.flag_score:
@@ -458,7 +582,7 @@ class Level1(tools._State):
                         enemy.rect.x = self.viewport.right + (index * 60)
                     self.enemy_group.add(self.enemy_group_list[i-1])
 
-            if checkpoint.name == '11':
+            if checkpoint.name == '11' and False: # REMOVED FLAG POLE
                 self.mario.state = c.FLAGPOLE
                 self.mario.invincible = False
                 self.mario.flag_pole_right = checkpoint.rect.right
@@ -1372,6 +1496,7 @@ class Level1(tools._State):
                     and self.game_info[c.CAMERA_START_X] == 0:
                 self.game_info[c.CAMERA_START_X] = 3440
             self.next = c.MAIN_MENU
+        self.game_info[c.CAMERA_START_X] = random.randint(0, 3440)
 
 
     def check_if_time_out(self):
@@ -1441,7 +1566,7 @@ class Level1(tools._State):
         self.shell_group.draw(self.level)
         #self.check_point_group.draw(self.level)
         self.brick_pieces_group.draw(self.level)
-        self.flag_pole_group.draw(self.level)
+        # self.flag_pole_group.draw(self.level) REMOVED FLAG POLE FOR NOW
         self.mario_and_enemy_group.draw(self.level)
 
         surface.blit(self.level, (0,0), self.viewport)
