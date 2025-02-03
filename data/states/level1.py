@@ -110,36 +110,39 @@ class Level1(tools._State):
 
         # --- Sequence Recording Attributes ---
         self.sequence_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-        self.sequence_data = []    # List of frame dictionaries
-        self.frame_number = 1      # To number each frame in the sequence
+        # Create a folder for this sequence, e.g. "data/sequenceA1B2C3D4"
+        self.sequence_folder = os.path.join("traindata", f"sequence{self.sequence_id}")
+        os.makedirs(self.sequence_folder, exist_ok=True)
+        # Create a subfolder for frame images
+        self.frames_folder = os.path.join(self.sequence_folder, "frames")
+        os.makedirs(self.frames_folder, exist_ok=True)
+        
+        self.states_data = []   # List of state dictionaries for each frame
+        self.frame_number = 1   # A counter for naming frames
         self.sequence_saved = False
 
-    def record_frame(self):
-        # Record the player's position:
+    def record_frame(self, surface):
+        # Record the state for this frame:
         player_state = {"x": self.mario.rect.x, "y": self.mario.rect.y}
-        
-        # Record the camera (viewport) position and size:
         camera_state = {
             "x": self.viewport.x,
             "y": self.viewport.y,
             "width": self.viewport.w,
             "height": self.viewport.h
         }
-        
-        # Record goomba positions from enemy_group (assuming goombas are instances of enemies.Goomba)
+        # Gather goomba positions (assuming goombas are instances of enemies.Goomba)
         goombas = []
         for enemy in self.enemy_group:
             if isinstance(enemy, enemies.Goomba):
                 goombas.append({"x": enemy.rect.x, "y": enemy.rect.y})
-        
-        # Record fireball positions from powerup_group (assuming fireballs are marked by their name)
+                
+        # Gather fireball positions (assuming fireballs are identifiable by powerup.name)
         fireballs = []
         for powerup in self.powerup_group:
-            # Adjust the condition if your FIREBALL constant differs.
             if hasattr(powerup, "name") and str(powerup.name).lower() == "fireball":
                 fireballs.append({"x": powerup.rect.x, "y": powerup.rect.y})
-        
-        # Create a frame state dictionary:
+                
+        # Create a state dictionary for this frame:
         frame_state = {
             "frame": self.frame_number,
             "player": player_state,
@@ -147,19 +150,25 @@ class Level1(tools._State):
             "goombas": goombas,
             "fireballs": fireballs
         }
+        # Append the frame state to our list:
+        self.states_data.append(frame_state)
         
-        # Append to the sequence data list and increment the counter
-        self.sequence_data.append(frame_state)
+        # Save the rendered frame buffer (surface) as an image.
+        # Name it with an 8-digit number, e.g. frame00000001.png
+        frame_filename = os.path.join(self.frames_folder, f"frame{self.frame_number:08d}.png")
+        pg.image.save(surface, frame_filename)
+        
         self.frame_number += 1
 
+
     def save_sequence(self):
-        data_folder = "traindata"
-        os.makedirs(data_folder, exist_ok=True)
-        filename = os.path.join(data_folder, f"sequence{self.sequence_id}.json")
-        output = {"frames": self.sequence_data}
-        with open(filename, "w") as fp:
+        # Write the states list to a file named "states.json" in the sequence folder.
+        states_filename = os.path.join(self.sequence_folder, "states.json")
+        output = {"frames": self.states_data}
+        with open(states_filename, "w") as fp:
             json.dump(output, fp, indent=2)
-        print(f"Sequence saved as {filename}")
+        print(f"Sequence saved: {states_filename}")
+
 
 
     def setup_background(self):
@@ -577,7 +586,7 @@ class Level1(tools._State):
 
         # Record the frame only while the player is alive:
         if not self.mario.dead:
-            self.record_frame()
+            self.record_frame(surface)
 
 
 
@@ -1559,6 +1568,7 @@ class Level1(tools._State):
                 self.sequence_saved = True
             self.set_game_info_values()
             self.done = True
+
 
 
     def set_game_info_values(self):
