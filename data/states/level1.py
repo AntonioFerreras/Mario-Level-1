@@ -192,10 +192,13 @@ class Level1(tools._State):
             json.dump(output, fp, indent=2)
         print(f"States saved: {states_filename}")
         
-        # Now, save all the in-memory frames to disk.
+        # Now, save all the in-memory frames to disk without alpha channel.
         for i, frame in enumerate(self.frames_in_memory, start=1):
             frame_filename = os.path.join(self.frames_folder, f"frame{i:08d}.png")
-            pg.image.save(frame, frame_filename)
+            # Create a new surface without alpha channel
+            frame_no_alpha = pg.Surface(frame.get_size()).convert()
+            frame_no_alpha.blit(frame, (0, 0))
+            pg.image.save(frame_no_alpha, frame_filename)
         print(f"Sequence frames saved to folder: {self.frames_folder}")
 
 
